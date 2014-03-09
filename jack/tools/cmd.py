@@ -10,19 +10,22 @@ Description:
 Usage:  jack select max_conc
         jack select max_vol
         jack select min_time
-        jack define receptor (<tie> --output <out> | --input <in>)
+        jack define receptor (<tie> <name> [--output <out>] | --input <in>)
 
 Options:
     -h --help               Show this screen
     -v --version            Show version
     -i --input <in>         Yaml input file
-    -o --output <out>       Filename of output file [default: receptor.geojson]
+    -o --output <out>       Filename of output file [default: name.geojson]
 """
 ### Imports
 from __future__ import print_function, division
 
+import os.path as osp
 from docopt import docopt
-from pprint import pprint
+from pprint import pprint, pformat
+
+
 
 ### Logging
 import logging
@@ -37,8 +40,57 @@ debug, info, error = logger.debug, logger.info, logger.error
 ### Classes
 
 ### Functions
+def lookup_function(verb, subject):
+    from jack.dispersant.receptors import define_receptor_cmd
+    d = {
+        ('define', 'receptor'): define_receptor_cmd,
+    }
+    return d[(verb, subject)]
+
+
+
+def dispatch_keys(args, verbs=None, subjects=None):
+    """
+    Parse the verb and subject from the args
+    """
+    verbs = verbs or ('select', 'define')
+    subjects = subjects or ('max_conc', 'max_vol', 'min_time', 'max_conc',
+                            'receptor')
+    vb = next(v for v in verbs if args[v])
+    sbj = next(s for s in subjects if args[s])
+    return vb, sbj
+
+def cleanup_args(args, key_tup):
+    """
+    Remove the keys not required for this dispatch func
+
+    Chiefly remove angles and dashes please
+    """
+    if key_tup == ('define', 'receptor'):
+        # Cleanup tie filepath
+        tie_fp = osp.abspath(args['<tie>'])
+        if osp.isfile(tie_fp):
+            args['tie_fp'] = tie_fp
+        else:
+            err_msg = 'No such file found: {}'.format(tie_fp)
+            raise IOError, err_msg
+        # Cleanup output file
+        if args['--output'] == 'name.geojson':
+            args['out_fp'] = args['<name>'] + '.geojson'
+
+    return args
+
 def main(args):
-    pprint(args)
+#    verbs = {'select', 'define'}
+#    subjects = {'max_conc', 'max_vol', 'min_time', 'max_conc'}
+
+    vb, sbj = dispatch_keys(args)
+    dispatch_func = lookup_function(vb, sbj)
+    args = cleanup_args(args, (vb, sbj))
+    dispatch_func(args)
+#    print(vb, sbj)
+#    pprint(args)
+
 
 def cmd():
     args = docopt(__doc__, version="jack v0.1.0")
