@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Module: cmd.py
-Package:
+Package: jack.tools
 Created on Sun Mar 09 10:24:14 2014
-@author: gav
+@author: Gavin Coombes
 Description:
+Jack is a package of workflow tools.
 
 Usage:  jack select max_conc (<nc_dir> <receptor> [--output <out>] | --input <in>)
         jack select max_vol  (<nc_dir> <receptor> [--output <out>] | --input <in>)
@@ -26,7 +27,9 @@ from docopt import docopt
 from pprint import pprint, pformat
 
 from jack.dispersant.receptors import define_receptor_cmd
-from jack.dispersant.netcdf import select_max_conc_cmd
+from jack.dispersant.netcdf import (
+    select_max_conc_cmd, select_max_vol_cmd, select_min_time_cmd
+)
 
 ### Logging
 import logging
@@ -46,6 +49,8 @@ def lookup_function(verb, subject):
     d = {
         ('define', 'receptor'): define_receptor_cmd,
         ('select', 'max_conc'): select_max_conc_cmd,
+        ('select', 'max_vol') : select_max_vol_cmd,
+        ('select', 'min_time'): select_min_time_cmd,
     }
     return d[(verb, subject)]
 

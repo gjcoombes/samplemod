@@ -13,6 +13,9 @@ from __future__ import print_function, division
 
 import geojson
 from pprint import pprint, pformat
+
+import banks.gis.tie as tie
+
 ### Logging
 import logging
 logger = logging.getLogger()
@@ -32,12 +35,12 @@ def define_receptor_cmd(args):
 
     This file will be a feature collection, probably of one polygon.
     """
-    import banks.gis.tie as tie
+
     names = {
         'browse'   : 'Browse Island',
-        'pinnacles': 'Pinnacles Bonaparte'
+        'pinnacles': 'Pinnacles Bonaparte',
+        'bare': 'Bare Sand Island',
     }
-
     print("Defining a receptor with:\n{}".format(pformat(args)))
     fp = args['tie_fp']
     out_fp = args['out_fp']
