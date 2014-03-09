@@ -40,6 +40,9 @@ def define_receptor_cmd(args):
         'browse'   : 'Browse Island',
         'pinnacles': 'Pinnacles Bonaparte',
         'bare': 'Bare Sand Island',
+        'vernon': 'Vernon Islands CR',
+        'indian': 'Indian Island CR',
+        'beagle': 'Beagle Gulf - Darwin',
     }
     print("Defining a receptor with:\n{}".format(pformat(args)))
     fp = args['tie_fp']
@@ -48,14 +51,39 @@ def define_receptor_cmd(args):
     receptor_name = names.get(key, key)
     feat_coll = tie.tie_feature_collection(fp)
     # Filter required feature into new collection
-    feat = filter(lambda f: f['properties']['name'] == receptor_name,
+    for f in feat_coll['features']:
+        print(f['properties']['name'])
+    feats = filter(lambda f: f['properties']['name'] == receptor_name,
                   feat_coll['features'])
-    new_coll = geojson.FeatureCollection([feat])
+
+    new_coll = geojson.FeatureCollection(feats)
+#    print(new_coll)
+    print('Writing to {}'.format(out_fp))
+    s = geojson.dumps(new_coll)
+    print(s)
     with open(out_fp, 'w') as sink:
-        sink.write(geojson.dumps(new_coll, sort_keys=True))
+        sink.write(s)
+#        sink.write(geojson.dumps(new_coll, sort_keys=True))
 
 ### Tests
 
 if __name__ == "__main__":
+    args = {
+    '--input': None,
+     '--output': 'name.geojson',
+     '<name>': 'beagle',
+     '<nc_dir>': None,
+     '<receptor>': None,
+     '<tie>': '.\\j0285_receptors.tie',
+     'define': True,
+     'max_conc': False,
+     'max_vol': False,
+     'min_time': False,
+     'out_fp': 'beagle.geojson',
+     'receptor': True,
+     'select': False,
+     'tie_fp': 'J:\\data\\pp0229\\j0285_receptors.tie'
+    }
+    define_receptor_cmd(args)
 
     print("Done __main__")

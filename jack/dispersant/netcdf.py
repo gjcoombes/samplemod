@@ -56,10 +56,19 @@ def receptor_polygon(receptor_fp):
     with open(receptor_fp) as source:
         coll = geojson.load(source)
     # There seems to be an extra layer of lists nesting here!!
-    feat = coll['features'][0][0]
+    feat = coll['features'][0]
 #    print(feat['geometry'])
     poly = asShape(feat['geometry'])
     return poly
+
+def mask_nc_data(nc_fp, nc_var, lat_mask, lon_mask):
+    """
+    Return the data within the bounds of the receptor polygon
+    """
+    with Dataset(nc_fp) as root:
+        data = root.variables[nc_var]
+        arr = data[lat_mask, lon_mask]
+    return arr
 
 def select_max_conc_cmd(args):
     """
@@ -98,18 +107,18 @@ def select_max_conc_cmd(args):
     inside_points = filter(prep_poly.contains, points)
     inside_set    = set( (p.x, p.y) for p in inside_points )
 
+    nc_var = 'conc_max'
     runs_max = []
     for nc_fp in nc_fps:
-        with Dataset(nc_fp) as root:
-            # Should compare grids fr equality here
-            surf_max = root.variables['conc_max']
-            arr = surf_max[lat_mask, lon_mask]
-        surf_concs = ( arr[j, i]  for j, lat_v in enumerate(lats)
+        arr = mask_nc_data(nc_fp, nc_var, lat_mask, lon_mask)
+#        plt.imshow(arr, origin='lower', interpolation='nearest')
+#        plt.show()
+        surf_concs = np.array([arr[j, i]  for j, lat_v in enumerate(lats)
                                   for i, lon_v in enumerate(lons)
-                                  if (lon_v, lat_v) in inside_set )
-        max_conc = max(surf_concs)
+                                  if (lon_v, lat_v) in inside_set])
+        max_conc = np.nanmax(surf_concs)
         runs_max.append({'fp': nc_fp, 'max_conc': max_conc})
-
+#    map(print, runs_max)
     plus_concs = filter(lambda d: d['max_conc'] > 0, runs_max)
     ranked_concs = sorted(plus_concs, key=lambda d: d['max_conc'], reverse=True)
     map(print, ranked_concs)
@@ -123,14 +132,6 @@ def select_max_conc_cmd(args):
 #    print("Max conc is {}".format(max(concs)))
 
 
-
-#    arr = surf_max[i, j]
-#    plt.imshow(arr, origin='lower', interpolation='nearest')
-#    plt.show()
-
-#    for v in root.variables:
-#        print(v)
-
 def select_min_time_cmd(args):
     pass
 
@@ -143,7 +144,7 @@ if __name__ == "__main__":
 
     args = {
         '<nc_dir>': r'J:\data\pp0229\netcdf',
-        '<receptor>': r'J:\data\pp0229\bare.geojson',
+        '<receptor>': r'J:\data\pp0229\vernon.geojson',
     }
     select_max_conc_cmd(args)
     print("Done __main__")
