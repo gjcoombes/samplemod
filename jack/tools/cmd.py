@@ -7,10 +7,10 @@ Created on Sun Mar 09 10:24:14 2014
 @author: gav
 Description:
 
-Usage:  jack select max_conc
-        jack select max_vol
-        jack select min_time
-        jack define receptor (<tie> <name> [--output <out>] | --input <in>)
+Usage:  jack select max_conc (<nc_dir> <receptor> [--output <out>] | --input <in>)
+        jack select max_vol  (<nc_dir> <receptor> [--output <out>] | --input <in>)
+        jack select min_time (<nc_dir> <receptor> [--output <out>] | --input <in>)
+        jack define receptor (<tie> <name>        [--output <out>] | --input <in>)
 
 Options:
     -h --help               Show this screen
@@ -25,7 +25,8 @@ import os.path as osp
 from docopt import docopt
 from pprint import pprint, pformat
 
-
+from jack.dispersant.receptors import define_receptor_cmd
+from jack.dispersant.netcdf import select_max_conc_cmd
 
 ### Logging
 import logging
@@ -41,9 +42,10 @@ debug, info, error = logger.debug, logger.info, logger.error
 
 ### Functions
 def lookup_function(verb, subject):
-    from jack.dispersant.receptors import define_receptor_cmd
+
     d = {
         ('define', 'receptor'): define_receptor_cmd,
+        ('select', 'max_conc'): select_max_conc_cmd,
     }
     return d[(verb, subject)]
 
