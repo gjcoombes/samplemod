@@ -17,7 +17,15 @@ setup(
     author='Kenneth Reitz',
     author_email='gav@darkseas.org',
     url='https://github.com/gjcoombes/samplemod',
-    license=license,
-    packages=find_packages(exclude=('tests', 'docs'))
+    packages=find_packages(exclude=('tests', 'docs')),
+    install_requires = [
+        "docopt",
+        "pyyaml"
+    ],
+    entry_points = {
+        'console_scripts': [
+            'jack = jack.tools.cmd:cmd'
+        ]
+    },
 )
 
