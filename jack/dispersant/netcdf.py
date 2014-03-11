@@ -40,6 +40,28 @@ debug, info, error = logger.debug, logger.info, logger.error
 ### Classes
 
 ### Functions
+def bounds_mask(nc_fp, polygon):
+    """
+    Find the lat, lon coords that represent the bounds of the polygon
+
+    Args:
+        nc_fp: string representing the path to nc file
+        polygon: A shapely polygon representing the receptor
+    """
+    with Dataset(nc_fp) as root:
+        lon = root.variables['lon'][:]
+        lat = root.variables['lat'][:]
+    (minx, miny, maxx, maxy) = polygon.bounds
+    # Prepare the mask for the polygon bounds
+    lat_mask = np.logical_and(lat > miny, lat < maxy)
+    lon_mask = np.logical_and(lon > minx, lon < maxx)
+
+    if __debug__:
+        debug('Polygon bounds are: {}'.format(polygon.bounds))
+        debug('Shape of lat mask is {}'.format(lat_mask.shape))
+        debug('Shape of lon mask is {}'.format(lon_mask.shape))
+    return lat, lat_mask, lon, lon_mask
+
 def netcdf_files(nc_dir, patt=None):
     """
     Return the nc_files amtching the pattern in dir
@@ -55,6 +77,7 @@ def receptor_polygon(receptor_fp):
     """
     with open(receptor_fp) as source:
         coll = geojson.load(source)
+    debug (coll)
     # There seems to be an extra layer of lists nesting here!!
     feat = coll['features'][0]
 #    print(feat['geometry'])
@@ -89,17 +112,11 @@ def select_max_conc_cmd(args):
 
     # Pickup the grid first to make polygon mask
     first_nc_fp = nc_fps[0]
-    with Dataset(first_nc_fp) as root:
-        lon = root.variables['lon'][:]
-        lat = root.variables['lat'][:]
+
     # Get the bounds and prepare for point in polygon
-    poly = receptor_polygon(receptor_fp)
-    prep_poly = prep(poly)
-    print('Polygon bounds is {}'.format(poly.bounds))
-    (minx, miny, maxx, maxy) = poly.bounds
-    # Prepare the mask for the polygon bounds
-    lat_mask = np.logical_and(lat > miny, lat < maxy)
-    lon_mask = np.logical_and(lon > minx, lon < maxx)
+    polygon = receptor_polygon(receptor_fp)
+    lat, lat_mask, lon, lon_mask = bounds_mask(first_nc_fp, polygon)
+    prep_poly = prep(polygon)
     lats = lat[lat_mask]
     lons = lon[lon_mask]
     # Filter the points that sre inside the polygon
@@ -111,14 +128,12 @@ def select_max_conc_cmd(args):
     runs_max = []
     for nc_fp in nc_fps:
         arr = mask_nc_data(nc_fp, nc_var, lat_mask, lon_mask)
-#        plt.imshow(arr, origin='lower', interpolation='nearest')
-#        plt.show()
-        surf_concs = np.array([arr[j, i]  for j, lat_v in enumerate(lats)
+        shore_concs = np.array([arr[j, i]  for j, lat_v in enumerate(lats)
                                   for i, lon_v in enumerate(lons)
                                   if (lon_v, lat_v) in inside_set])
-        max_conc = np.nanmax(surf_concs)
+        max_conc = np.nanmax(shore_concs)
         runs_max.append({'fp': nc_fp, 'max_conc': max_conc})
-#    map(print, runs_max)
+    map(print, runs_max)
     plus_concs = filter(lambda d: d['max_conc'] > 0, runs_max)
     ranked_concs = sorted(plus_concs, key=lambda d: d['max_conc'], reverse=True)
     map(print, ranked_concs)
@@ -136,9 +151,47 @@ def select_min_time_cmd(args):
     pass
 
 def select_max_vol_cmd(args):
-    pass
+    nc_dir = args['<nc_dir>']
+    receptor_fp = args['<receptor>']
+    assert osp.isdir(nc_dir)
+    assert osp.isfile(receptor_fp)
 
-### Tests
+    patt = "J0285_D5_IFO-180_WET_???_SHTS.nc"
+    nc_fps = netcdf_files(nc_dir, patt)
+    first_nc_fp = nc_fps[0]
+
+    polygon = receptor_polygon(receptor_fp)
+    lat, lat_mask, lon, lon_mask = bounds_mask(first_nc_fp, polygon)
+    prep_poly = prep(polygon)
+    lats = lat[lat_mask]
+    lons = lon[lon_mask]
+    # Filter the points that sre inside the polygon
+    points = ( Point(x, y) for x in lon[lon_mask] for y in lat[lat_mask] )
+    inside_points = filter(prep_poly.contains, points)
+    inside_set    = set( (p.x, p.y) for p in inside_points )
+
+    nc_var = 'shore_conc'
+    runs_max = []
+    for nc_fp in nc_fps:
+        with Dataset(nc_fp) as root:
+            data = root.variables[nc_var]
+            arr = data[lat_mask, lon_mask,:]
+
+        shore_concs = np.array([arr[j, i]  for j, lat_v in enumerate(lats)
+                                  for i, lon_v in enumerate(lons)
+                                  if (lon_v, lat_v) in inside_set])
+        max_conc = np.nanmax(shore_concs)
+        runs_max.append({'fp': nc_fp, 'max_conc': max_conc})
+#    map(print, runs_max)
+    plus_concs = filter(lambda d: d['max_conc'] > 0, runs_max)
+    ranked_concs = sorted(plus_concs, key=lambda d: d['max_conc'], reverse=True)
+    map(print, ranked_concs)
+
+def show(arr):
+    plt.imshow(arr, origin='lower', interpolation='nearest')
+    plt.show()
+
+    ### Tests
 
 if __name__ == "__main__":
 
@@ -146,5 +199,5 @@ if __name__ == "__main__":
         '<nc_dir>': r'J:\data\pp0229\netcdf',
         '<receptor>': r'J:\data\pp0229\vernon.geojson',
     }
-    select_max_conc_cmd(args)
+    select_max_vol_cmd(args)
     print("Done __main__")
